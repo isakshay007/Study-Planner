@@ -73,7 +73,7 @@ def rag_implementation():
 
     return rag
 
-# Function to get files in directory
+# Function to get files in the directory
 def get_files_in_directory(directory="data"):
     files_list = []
 
