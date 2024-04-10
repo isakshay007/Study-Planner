@@ -20,11 +20,11 @@ image = Image.open("./logo/lyzr-logo.png")
 st.image(image, width=150)
 
 # App title and introduction
-st.title("Study Planner📚")
+st.title("Student Advisor🎓")
 st.markdown("### Built using Lyzr SDK🚀")
-st.markdown(" Immerse yourself in efficient studying with our Study Planner app! Generate a tailored study schedule effortlessly based on your syllabus, ensuring optimal utilization of your free time.")
+st.markdown("Navigate your academic journey effortlessly with our Student Advisor app, leveraging Lyzr's ChatBot for personalized insights tailored to your coursework and ambitions.")
 
-# Function to remove existing files
+# Function to remove existing files in the directory
 def remove_existing_files(directory):
     for filename in os.listdir(directory):
         file_path = os.path.join(directory, filename)
@@ -45,77 +45,90 @@ os.makedirs(data_directory, exist_ok=True)
 # Remove existing files in the data directory
 remove_existing_files(data_directory)
 
-# File upload widget
-uploaded_file = st.file_uploader("Choose Word file", type=["docx"])
-
-# User inputs for number of free days in a week and number of months for preparation
-if uploaded_file is not None:
-    num_free_days_week = st.number_input("Number of free days in a week", min_value=1, max_value=7, value=3)
-    num_months_preparation = st.number_input("Number of months for preparation", min_value=1, value=2)
-    button_clicked = st.button("OK")
-else:
-    num_free_days_week = None
-    num_months_preparation = None
-    button_clicked = False
 
 # Function to implement RAG Lyzr Chatbot
-def rag_implementation():
-    # Get the file path
-    file_path = get_files_in_directory()[0]
+def rag_implementation(file_path):
+    # Check the file extension
+    _, file_extension = os.path.splitext(file_path)
 
-    # Initialize the RAG Lyzr ChatBot
-    rag = ChatBot.docx_chat(
-        input_files=[file_path],
-        llm_params={"model": "gpt-3.5-turbo"},
-    )
+    if file_extension.lower() == ".pdf":
+        # Initialize the PDF Lyzr ChatBot
+        rag = ChatBot.pdf_chat(
+            input_files=[file_path],
+            llm_params={"model": "gpt-4"},
+        )
+    elif file_extension.lower() == ".docx":
+        # Initialize the DOCX Lyzr ChatBot
+        rag = ChatBot.docx_chat(
+            input_files=[file_path],
+            llm_params={"model": "gpt-4"},
+        )
+    else:
+        # Handle unsupported file types
+        raise ValueError("Unsupported file type. Only PDF and DOCX files are supported.")
 
     return rag
 
-# Function to get files in directory
-def get_files_in_directory(directory="data"):
-    files_list = []
-
-    if os.path.exists(directory) and os.path.isdir(directory):
-        for filename in os.listdir(directory):
-            file_path = os.path.join(directory, filename)
-            if os.path.isfile(file_path):
-                files_list.append(file_path)
-
-    return files_list
 
 # Function to get Lyzr response
-def resume_response():
-    rag = rag_implementation()
-    prompt = f"""Please follow the instructions below to create a study schedule based on the provided syllabus, the number of free days in a week ({num_free_days_week} days), and the number of months for preparation ({num_months_preparation} months):
+def advisor_response(file_path, ambition):
+    rag = rag_implementation(file_path)
+    prompt = f"""Your name is Isha, always remember that, and you are a student advisor at a university. Always introduce yourself.
+                 
+                 To generate advice for the uploaded document, please follow the instructions below:
+                    
+                      - Course work and grades: Being a Student Advisor, look into the uploaded marksheet and give important insights about where the student performance lies.
+                     
+                      - Ambition: Informed by the student's ambition (replace {ambition}), advise them on the steps required to excel in their chosen path.
+                     
+                      - Academic advice: Being a Student Advisor, look into the uploaded document and give important insights about where the student's strength and weaknesses lie and how to improve them.
+                     
+                      - Career guidance: Being a student Advisor utilize the student's ambition, coursework, and grades, offer pertinent suggestions for their career trajectory.
+                     
+                      - Personal development: Being a student Advisor offer guidance on fostering high productivity through effective time management techniques and engaging in relevant extracurricular activities.
+                     
+                      - Please ensure adherence to these steps and provide responses akin to a student advisor. """
 
-- After that, create an effective study plan for the topics provided.
-- Ensure that all the topics are covered within the crash study plan.
-- Try to specify in-depth about each day and the subjects that can be studied."""
-    
     response = rag.chat(prompt)
     return response.response
 
-# If file is uploaded and user inputs are provided
-if button_clicked:
-    if uploaded_file is not None and num_free_days_week is not None and num_months_preparation is not None:
-        # Save the uploaded Word file to the data directory
-        file_path = os.path.join(data_directory, uploaded_file.name)
-        with open(file_path, "wb") as file:
-            file.write(uploaded_file.getvalue())
-        
-        # Display success message
-        st.success(f"File successfully saved")
-        
-        # Get Lyzr response
-        automatic_response = resume_response()
-        st.markdown(f"""{automatic_response}""")
+# File upload widget
+uploaded_file = st.file_uploader("Upload your Marksheet⬇️", type=["pdf", "docx"])
 
-# Footer or additional information
+if uploaded_file is not None:
+    # Save the uploaded file to the data directory
+    file_path = os.path.join(data_directory, uploaded_file.name)
+    with open(file_path, "wb") as file:
+        file.write(uploaded_file.getvalue())
+    
+    # Display the path of the stored file
+    st.success("File successfully saved")
+
+    # User input for student's ambition
+    ambition = st.text_input("What is your Ambition?")
+
+    # Generate advice button
+    if st.button("Get Advice"):
+        if not ambition:
+            st.warning("Please enter your ambition.")
+        else:
+            automatic_response = advisor_response(file_path, ambition)
+            st.markdown(automatic_response)
+
+# Footer or any additional information
 with st.expander("ℹ️ - About this App"):
     st.markdown(
-        """Experience the seamless integration of Lyzr's ChatBot . For any inquiries or issues, please contact Lyzr."""
+        """Experience the seamless integration of Lyzr's ChatBot as you refine your documents with ease. For any inquiries or issues, please contact Lyzr."""
     )
     st.link_button("Lyzr", url="https://www.lyzr.ai/", use_container_width=True)
-    st.link_button("Book a Demo", url="https://www.lyzr.ai/book-demo/", use_container_width=True)
-    st.link_button("Discord", url="https://discord.gg/nm7zSyEFA2", use_container_width=True)
-    st.link_button("Slack", url="https://join.slack.com/t/genaiforenterprise/shared_invite/zt-2a7fr38f7-_QDOY1W1WSlSiYNAEncLGw", use_container_width=True)
+    st.link_button(
+        "Book a Demo", url="https://www.lyzr.ai/book-demo/", use_container_width=True
+    )
+    st.link_button(
+        "Discord", url="https://discord.gg/nm7zSyEFA2", use_container_width=True
+    )
+    st.link_button(
+        "Slack",
+        url="https://join.slack.com/t/genaiforenterprise/shared_invite/zt-2a7fr38f7-_QDOY1W1WSlSiYNAEncLGw",
+        use_container_width=True,
+    )
